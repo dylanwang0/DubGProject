@@ -2,6 +2,8 @@
 import java.util.Queue;
 import java.util.LinkedList;
 import javax.swing.JPanel;
+import java.util.Map;
+import java.util.HashMap;
 /*----------------------------------------*/
 
 /* [Player.java]
@@ -82,6 +84,8 @@ class Player extends Mob {
   public int yTileOG;
   /** Whether the player is dead */
   public boolean dead;
+  /** Maps the potion to a specific colour effect */
+  private Map<Integer,Integer> colourMap;
   
   /**
    * Creates an object from the Player class
@@ -125,6 +129,11 @@ class Player extends Mob {
     this.xTileOG = 0;
     this.yTileOG = 28;
     this.dead = false;
+    this.colourMap = new HashMap<Integer,Integer>();
+    this.colourMap.put(0,Colours.get(000, 411, 320, -1));
+    this.colourMap.put(1,Colours.get(000, 204, 320, -1));
+    this.colourMap.put(2,Colours.get(000, 044, 320, -1));
+    this.colourMap.put(3,Colours.get(000, 055, 320, -1));    
   }
   
   /**
@@ -542,6 +551,7 @@ class Player extends Mob {
       return;
     }
     
+    //display user health
     int i = 0;
     for (; i < (int)this.health; i++) {
       screen.render(xOffset - 12 + (i * 8) , yOffset - 8, 4 * 32, Colours.get(000,400,-1,-1),0,1);
@@ -579,6 +589,12 @@ class Player extends Mob {
     }
     
     //set potion colour based on type
+    
+    if (curPotion != null) {
+      potionColour = colourMap.get(curPotion.getId());
+    }
+
+    /*
     if (curPotion != null) {
       if (curPotion.getId() == 0) {
         potionColour = Colours.get(000, 411, 320, -1);
@@ -590,6 +606,7 @@ class Player extends Mob {
         potionColour = Colours.get(000, 055, 320, -1);
       }
     }
+    */
     
     //draw the circle representing the player 1-item inventory
     int circleColour = Colours.get(210,431,-1,-1);

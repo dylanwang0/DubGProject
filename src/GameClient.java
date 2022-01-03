@@ -1,34 +1,15 @@
-/* -------- IMPORTS ---------- */
 import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.io.IOException;
-/* -------------------------- */
-
-/**
- * [GameClient.java]
- * This program refers to the game client that runs when a player joins the game.
- * The game client runs on its own thread and receives packets/information from the server.
- * @author Braydon Wang, Dylan Wang
- * @version 1.0, Jan. 25, 2021
- */
 
 public class GameClient extends Thread {
   
-  /** The ip address of the server */
   private InetAddress ipAddress;
-  /** The socket that receives packets */
   private DatagramSocket socket;
-  /** The current game that is initialized */
   private DubG game;
-  
-  /**
-   * Creates an object from the Game Client class
-   * @param game the current game
-   * @param ipAddress the ip address of the server
-   */
   
   public GameClient(DubG game, String ipAddress) {
     this.game = game;
@@ -42,10 +23,6 @@ public class GameClient extends Thread {
     }
   }
   
-  /**
-   * The method that continuously receives information through packets.
-   */
-  
   public void run() {
     while (true) {
       //the array of bytes of data that we will send to and from the server
@@ -58,21 +35,14 @@ public class GameClient extends Thread {
       }
       
       this.parsePacket(packet.getData(), packet.getAddress(), packet.getPort());
+      //System.out.println("SERVER > " + new String(packet.getData()));
     }
   }
-  
-  /**
-   * The method that parses packets based on their type and the information that they include.
-   * @param data       the data of the packet in a byte array
-   * @param address the ip address
-   * @param port       the port number
-   */
   
   private void parsePacket(byte[] data, InetAddress address, int port) {
     String message = new String(data).trim();
     Packet.PacketTypes type = Packet.lookupPacket(message.substring(0,2));
     Packet packet = null;
-    //parsing each of the packet types based on what information it hold
     switch(type) {
       default:
       case INVALID:
@@ -149,11 +119,6 @@ public class GameClient extends Thread {
     }
   }
   
-  /**
-   * The method sends the data of the packet to the server.
-   * @param data the byte array data of the packet
-   */
-  
   public void sendData(byte[] data) {
     DatagramPacket packet = new DatagramPacket(data, data.length, ipAddress, 1331);
     try {
@@ -163,37 +128,19 @@ public class GameClient extends Thread {
     }
   }
   
-  /**
-   * The method handles login packets.
-   * @param packet   the login packet
-   * @param address the ip address
-   * @param port       the port number
-   */
-  
   private void handleLogin(Packet00Login packet, InetAddress address, int port) {
     System.out.println("["+address.getHostAddress() + ":" + port + "]" + packet.getUsername() + " has joined the game . . .");
     PlayerMP player = new PlayerMP(game.level, packet.getX(), packet.getY(), packet.getUsername(), 400, address, port);
     game.level.addedEntities.add(player);
   }
   
-  /**
-   * The method handles player movement packets.
-   * @param packet   the move packet
-   */
-  
   private void handleMove(Packet02Move packet) {
     this.game.level.movePlayer(packet.getUsername(), packet.getX(), packet.getY(), packet.getNumSteps(), packet.isMoving(), packet.getMovingDir());
   }
   
-  /**
-   * The method handles bullets joining the game packets.
-   * @param packet   the bullet packet
-   */
-  
   private void handleEnter(Packet03BulletEnter packet) {
     Bullet bullet = new Bullet(game.level,packet.getUsername(),packet.getX(),packet.getY(),packet.getSpeed(),packet.getMovingDir(),packet.getId(),packet.getDamage(),packet.getXTile(),packet.getYTile());
     game.level.addedEntities.add(bullet);
-    //handling bullets shot by the turrets
     if (packet.getUsername().equalsIgnoreCase("Turret3")) {
       ((Turret)game.level.tilesOver[10 + 9 * game.level.width]).lastBulletTime = System.currentTimeMillis();
     } else if (packet.getUsername().equalsIgnoreCase("Turret0")) {
@@ -203,119 +150,54 @@ public class GameClient extends Thread {
     }
   }
   
-  /**
-   * The method handles bullets leaving the game packets.
-   * @param packet   the bullet leave packet
-   */
-  
   private void handleLeave(Packet04BulletLeave packet) {
     game.level.removeBullet(packet.getUsername(),packet.getId());
   }
-  
-  /**
-   * The method handles bullets moving packets.
-   * @param packet   the bullet move packet
-   */
   
   private void handleBulletMove(Packet05BulletMove packet) {
     game.level.moveBullet(packet.getUsername(),packet.getX(),packet.getY(),packet.getNumSteps(),packet.isMoving(),packet.getMovingDir(),packet.getId());
   }
   
-  /**
-   * The method handles crates breaking packets.
-   * @param packet   the crate packet
-   */
-  
   private void handleCrate(Packet06Crate packet) {
     game.level.breakCrate(packet.getId());
   }
   
-  /**
-   * The method handles potions coming from crates packets.
-   * @param packet   the potion packet
-   */
-  
   private void handlePotion(Packet07Potion packet) {
     game.level.setPotion(packet.getX(),packet.getY(),packet.getId());
   }
-  
-  /**
-   * The method handles the health potion packet.
-   * @param packet   the health potion packet
-   */
   
   private void handleHealth(Packet10HealthPotion packet) {
     game.level.setPlayerHealth(packet.getUsername());
     game.level.setPlayerHealed(packet.getUsername(), true);
   }
   
-  /**
-   * The method handles the rage potion start packet.
-   * @param packet   the rage potion start packet
-   */
-  
   private void handleRageStart(Packet11RageStart packet) {
     game.level.setPlayerRage(packet.getUsername(), true);
   }
-  
-  /**
-   * The method handles the rage potion end packet.
-   * @param packet   the rage potion end packet
-   */
   
   private void handleRageEnd(Packet12RageEnd packet) {
     game.level.setPlayerRage(packet.getUsername(), false);
   }
   
-  /**
-   * The method handles the speed potion start packet.
-   * @param packet   the speed potion start packet
-   */
-  
   private void handleSpeedStart(Packet13SpeedStart packet) {
     game.level.setPlayerFast(packet.getUsername(), true);
   }
-  
-  /**
-   * The method handles the speed potion end packet.
-   * @param packet   the speed potion end packet
-   */
   
   private void handleSpeedEnd(Packet14SpeedEnd packet) {
     game.level.setPlayerFast(packet.getUsername(), false);
   }
   
-  /**
-   * The method handles the health potion end packet.
-   * @param packet   the health potion end packet
-   */
-  
   private void handleHealStop(Packet15HealStop packet) {
     game.level.setPlayerHealed(packet.getUsername(), false);
   }
-  
-  /**
-   * The method handles the experience potion start packet.
-   * @param packet   the experience potion start packet
-   */
   
   private void handleExpStart(Packet16ExpStart packet) {
     game.level.setPlayerExped(packet.getUsername(), true);
   }
   
-  /**
-   * The method handles the experience potion stop packet.
-   * @param packet   the experience potion stop packet
-   */
-  
   private void handleExpStop(Packet17ExpStop packet) {
     game.level.setPlayerExped(packet.getUsername(), false);
   }
-  
-  /**
-   * The method handles the player's change class packet.
-   * @param packet   the change class packet
-   */
   
   private void handleChangeClass(Packet20ChangeClass packet) {
     game.level.changePlayerClass(packet.getUsername(),packet.getClassType(),packet.getColour(),packet.getXTile(),packet.getYTile());

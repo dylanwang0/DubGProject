@@ -1,4 +1,3 @@
-/* -------- IMPORTS ---------- */
 import java.awt.Canvas;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -17,95 +16,61 @@ import javax.swing.JPanel;
 import javax.swing.JButton;
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.awt.event.MouseEvent;
+
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.Clip;
 import javax.sound.sampled.LineListener;
 import javax.sound.sampled.LineEvent;
-/* -------------------------- */
-
-/**
- * [DubG.java]
- * This program refers to the main game that is run.
- * This game is a multiplayer, action-arcade, battle royale game with turrets, crates, potions, etc.
- * You have a choice to host a game (server) or be a player (client)
- * @author Braydon Wang, Dylan Wang
- * @version 1.0, Jan. 25, 2021
- */
 
 public class DubG extends Canvas implements Runnable {
   
-  /** The serial version id of the game */
   private static final long serialVersionUID = 1L;
-  /** The width of the screen */
+  
   static final int WIDTH = 160;
-  /** The height of the screen in proportion to the width */
   static final int HEIGHT = WIDTH / 12 * 9;
-  /** The scale size of the screen */
   static final int SCALE = 3;
-  /** The name of the game */
   static final String NAME = "DubG";
-  /** The dimensions of the game with respect to width, height and the scale */
   static final Dimension DIMENSIONS = new Dimension(WIDTH*SCALE, HEIGHT*SCALE);
-  /** Whether the server is running or not */
   static boolean runServer = false;
-  /** The current game initialized */
   public static DubG game;
   
-  /** The Jframe used to draw the game to */
   JFrame frame;
-  /** Whether the game is running or not */
   boolean running = false;
-  /** The number of ticks the game has updated so far */
   int tickCount = 0;
   
-  /** The image that is drawn to the screen with its colours rendered */
   private BufferedImage image = new BufferedImage(WIDTH,HEIGHT,BufferedImage.TYPE_INT_RGB);
-  /** The number of pixels inside of the image */
+  //the number of pixels inside of the image
   private int[] pixels = ((DataBufferInt)image.getRaster().getDataBuffer()).getData();
-  /** The colours represented by their RGB representation */
   private int[] colours = new int[6*6*6];
   
-  /** The screen that the game is drawn to */
   private Screen screen;
-  /** The input handler used to handler player input */
   InputHandler input;
-  /** The mouse handler that deals with mouse movement */
   MouseHandler mouseHandler;
-  /** The window handler that deals with the actions of the window */
   WindowHandler windowHandler;
   
-  /** The current level of the map that is being drawn */
   Level level;
-  /** The current player that has joined the game */
   Player player;
   
-  /** The socket client */
   GameClient socketClient;
-  /** The socket server */
   GameServer socketServer;
   
-  /** The JFrame used to draw the main menu on to */
   static JFrame menu;
   
-  /** The spawn coordinates of each new player */
   public int[][] spawnCoords = {{256,47}, {32,252}, {256,468}, {480,252}};
   
-  /**
-   * Creates an object from the DubG class
-   */
+  static Color BLUE = new Color(0,0,255);
+  
   
   public DubG() {
-    //setting the minimum and maximum size of the game
     setMinimumSize(new Dimension(WIDTH*SCALE,HEIGHT*SCALE));
     setMaximumSize(new Dimension(WIDTH*SCALE,HEIGHT*SCALE));
     setPreferredSize(new Dimension(WIDTH*SCALE,HEIGHT*SCALE));
     
-    //creating the frame
     frame = new JFrame(NAME);
     frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     frame.setLayout(new BorderLayout());
@@ -114,21 +79,14 @@ public class DubG extends Canvas implements Runnable {
     frame.add(this,BorderLayout.CENTER);
     frame.pack();
     
-    //adding basic features to the frame
     frame.setResizable(false);
     frame.setLocationRelativeTo(null);
     frame.setVisible(true);
   }
   
-  /**
-   * This method initializes all of the important variables necessary to start the game.
-   */
-  
   public void init() {
     game = this;
     int index = 0;
-    
-    //intializing the different shades of colours given by each integer value of RGB
     for (int r = 0; r < 6; r++) {
       for (int g = 0; g < 6; g++) {
         for (int b = 0; b < 6; b++) {
@@ -140,15 +98,11 @@ public class DubG extends Canvas implements Runnable {
         }
       }
     }
-    
-    //initializing all handlers and important objects needed to function the game
     screen = new Screen(WIDTH,HEIGHT,new SpriteSheet("res/sprite_sheet.png"));
     input = new InputHandler(this);
     mouseHandler = new MouseHandler(this);
     windowHandler = new WindowHandler(this);
     level = new Level("res/Main_Map.png");
-    
-    //creating the player at a random spawn location
     if (socketServer == null) {
       int rand = (int)(Math.random() * 100);
       int randId = 0;
@@ -168,12 +122,9 @@ public class DubG extends Canvas implements Runnable {
       player = new PlayerMP(level,257,253,input,"SERVER",400,null,-1);
     }
     
-    //adding the player to the list of entities and setting input handlers to it
     input.setPlayer(player);
     mouseHandler.setPlayer(player);
     level.addEntity(player);
-    
-    //sending a login packet to the server
     Packet00Login loginPacket = new Packet00Login(player.getUsername(), player.x, player.y);
     if (socketServer != null) {
       socketServer.addConnection((PlayerMP)player,loginPacket);
@@ -181,36 +132,21 @@ public class DubG extends Canvas implements Runnable {
     loginPacket.writeData(socketClient);
   }
   
-  /**
-   * This method creates the socket server and the socket client using the specified IP address.
-   */
-  
   public synchronized void start() {
     running = true;
     new Thread(this).start();
     
-    //running the server only if the player is a host
     if (runServer) {
       socketServer = new GameServer(this);
       socketServer.start();
     }
-    
-    //creating a client on the local ip address
     socketClient = new GameClient(this, "localhost");
     socketClient.start();
   }
   
-  /**
-   * This method stops running the game.
-   */
-  
   public synchronized void stop() {
     running = false;
   }
-  
-  /**
-   * This method continuously runs and updates the game using the tick and frame counter.
-   */
   
   public void run() {
     long lastTime = System.nanoTime();
@@ -222,19 +158,16 @@ public class DubG extends Canvas implements Runnable {
     long lastTimer = System.currentTimeMillis();
     double delta = 0;
     
-    //initializing the game
     if (socketServer == null) {
       init();
     }
     
-    //updating all of the tick and frame counters and tells the game when to render
     while (running) {
       long now = System.nanoTime();
       delta += (now - lastTime) / nsPerTick;
       lastTime = now;
       boolean shouldRender = true;
       
-      //updating the game when the counter is greater than the time set
       while (delta >= 1) {
         ticks++;
         tick();
@@ -242,20 +175,17 @@ public class DubG extends Canvas implements Runnable {
         shouldRender = true;
       }
       
-      //adding some delay time
       try {
         Thread.sleep(2);
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
       
-      //rendering the screen when necessary
       if (shouldRender) {
         frames++;
         render();
       }
       
-      //updating the number of frames and ticks every second
       if (System.currentTimeMillis() - lastTimer >= 1000) {
         lastTimer += 1000;
         frames = 0;
@@ -264,18 +194,10 @@ public class DubG extends Canvas implements Runnable {
     }
   }
   
-  /**
-   * This method updates the tick counter and ticks all of the entities part of the map level.
-   */
-  
   public void tick() {
     tickCount++;
     level.tick();
   }
-  
-  /**
-   * This method renders and draws all of the entities and tiles onto the frame.
-   */
   
   public void render() {
     BufferStrategy bs = getBufferStrategy();
@@ -285,15 +207,11 @@ public class DubG extends Canvas implements Runnable {
       return;
     }
     
-    //setting the x and y offsets of the screen
     int xOffset = player.x - (screen.width/2), yOffset = player.y - (screen.height/2);
-    //rendering the map level with the appropriate offsets
     level.renderTiles(screen,xOffset,yOffset);
     
-    //rendering the entities on the screen
     level.renderEntities(screen);
     
-    //getting all of the colours of the pixels from the already initialized colours
     for (int y = 0; y < screen.height; y++) {
       for (int x = 0; x < screen.width; x++) {
         int colourCode = screen.pixels[x+y*screen.width];
@@ -303,7 +221,6 @@ public class DubG extends Canvas implements Runnable {
       }
     }
     
-    //displaying the image on to the screen
     Graphics g = bs.getDrawGraphics();    
     g.drawImage(image,0,0,getWidth(),getHeight(),null);
     
@@ -312,8 +229,9 @@ public class DubG extends Canvas implements Runnable {
   }
   
   /**
-   * This method plays sound effects with the specified file name using audio input stream
-   * @param fileName the name of the sound effect file
+   * sound
+   * This method plays the background music for the game
+   * @return void
    */
   
   public static void sound(String fileName) {
@@ -322,8 +240,6 @@ public class DubG extends Canvas implements Runnable {
       AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioFile);
       DataLine.Info info = new DataLine.Info(Clip.class, audioStream.getFormat());
       Clip clip = (Clip) AudioSystem.getLine(info);
-      
-      //depending on whether the file is the background music or not, stop the clip or repeat
       if (fileName.equals("IntroMusic.wav")) {
         clip.addLineListener(new RepeatListener());
       } else {
@@ -338,11 +254,11 @@ public class DubG extends Canvas implements Runnable {
   }
   
   /**
-   * This class stops playing the specified audio when the clip is over.
-   * @author Braydon Wang, Dylan Wang
-   * @version 1.0, Jan. 25, 2021
+   * SoundListener
+   * This class indicates when the sound effect is finished
+   * @return void
    */
-  
+    
   static class SoundListener implements LineListener {
     public void update(LineEvent event) {
       if (event.getType() == LineEvent.Type.STOP) {
@@ -350,12 +266,6 @@ public class DubG extends Canvas implements Runnable {
       }
     }
   }
-  
-  /**
-   * This class repeats the background music of the game when the audio clip finishes.
-   * @author Braydon Wang, Dylan Wang
-   * @version 1.0, Jan. 25, 2021
-   */
   
   static class RepeatListener implements LineListener {
     public void update(LineEvent event) {
@@ -366,12 +276,7 @@ public class DubG extends Canvas implements Runnable {
     }
   }
   
-  /**
-   * This method draws the main menu onto the screen using menu panel.
-   */
-  
   static void displayMenu() {
-    //creating a new JFrame to hold the contents of the menu
     menu = new JFrame(NAME);
     menu.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     menu.setLayout(new BorderLayout());
@@ -383,49 +288,29 @@ public class DubG extends Canvas implements Runnable {
     
     menu.pack();
     
-    //setting basic features of the frame
     menu.setResizable(false);
     menu.setLocationRelativeTo(null);
     menu.setVisible(true);
   }
   
-  /**
-   * This class draws the main menu using Paint Component and also deals with mouse input.
-   * @author Braydon Wang, Dylan Wang
-   * @version 1.0, Jan. 25, 2021
-   */
-  
   static class MenuPanel extends JPanel implements MouseListener, MouseMotionListener {
     
-    /* -------- COLOURS --------- */
     Color BLACK = new Color(0,0,0);
     Color WHITE = new Color(255,255,255);
     Color LIGHT_BLUE = new Color(190,226,240);
     Color DARK_RED = new Color(88,0,0);
-    /* -------------------------- */
     
-    /** Status of player in the main menu */
     boolean inMenu = true;
-    /** Hovering over the play button */
     boolean playHover = false;
-    /** Hovering over the controls button */
     boolean controlHover = false;
-    /** Hovering over the quit button */
     boolean quitHover = false;
-    /** Clicked the play button */
     boolean playClick = false;
-    /** Hovering over the host button */
     boolean hostHover = false;
-    /** Hovering over the player button */
     boolean playerHover = false;
-    /** Hovering over the left arrow button */
     boolean leftHover = false;
-    /** Hovering over the right arrow button */
     boolean rightHover = false;
-    /** The index of the current controls page */
     int controlPic = 0;
     
-    /* -------- IMAGES --------- */
     Image title = Toolkit.getDefaultToolkit().getImage("Title.png");
     Image subtitle = Toolkit.getDefaultToolkit().getImage("Subtitle.png");
     Image pixelGuy = Toolkit.getDefaultToolkit().getImage("Pixel Guy.gif");
@@ -435,38 +320,24 @@ public class DubG extends Canvas implements Runnable {
     Image rightArrowWhite = Toolkit.getDefaultToolkit().getImage("ArrowRightWhite.png");
     Image[] controls = {Toolkit.getDefaultToolkit().getImage("ControlPage1.png"), Toolkit.getDefaultToolkit().getImage("ControlPage2.png"),
       Toolkit.getDefaultToolkit().getImage("ControlPage3.png")};
-    /* -------------------------- */
-    
-    /**
-   * Creates an object from the Menu Panel class
-   */
     
     MenuPanel() {
       addMouseListener(this);
       addMouseMotionListener(this);
     }
     
-    /**
-   * This method continuously draws the main menu onto the screen using graphics
-   * @param g the graphics variable
-   */
-    
     public void paintComponent(Graphics g) {
       super.paintComponent(g);
       if (inMenu) {
-        //setting the background
         g.setColor(BLACK);
         g.fillRect(0,0,1000,1000);
         
-        //drawing the title and subtitle
         g.drawImage(title,20,20,260,80,this);
         g.drawImage(subtitle,30,96,260,30,this);
         
         g.drawImage(pixelGuy,300,50,170,240,this);
         
-        //drawing the buttons depending on whether the mouse is hovering over or not
         g.setColor(WHITE);
-        
         if (!playClick) {
           g.drawRect(29,149,251,36);
         } else {
@@ -476,7 +347,6 @@ public class DubG extends Canvas implements Runnable {
         g.drawRect(29,199,251,36);
         g.drawRect(29,249,251,36);
         
-        //play button
         if (!playClick) {
           if (playHover) {
             g.setColor(WHITE);
@@ -485,7 +355,6 @@ public class DubG extends Canvas implements Runnable {
           }
           g.fillRect(30,150,250,35);
         } else {
-          //host button
           if (hostHover) {
             g.setColor(WHITE);
           } else {
@@ -493,7 +362,6 @@ public class DubG extends Canvas implements Runnable {
           }
           g.fillRect(30,150,119,35);
           
-          //player button
           if (playerHover) {
             g.setColor(WHITE);
           } else {
@@ -502,7 +370,6 @@ public class DubG extends Canvas implements Runnable {
           g.fillRect(160,150,119,35);
         }
         
-        //controls button
         if (controlHover) {
           g.setColor(WHITE);
         } else {
@@ -510,7 +377,6 @@ public class DubG extends Canvas implements Runnable {
         }
         g.fillRect(30,200,250,35);
         
-        //quit button
         if (quitHover) {
           g.setColor(WHITE);
         } else {
@@ -518,9 +384,9 @@ public class DubG extends Canvas implements Runnable {
         }
         g.fillRect(30,250,250,35);
         
+      
         g.setFont(new Font("Serif", Font.PLAIN, 20));
         
-        //play font
         if (!playClick) {
           if (playHover) {
             g.setColor(BLACK);
@@ -529,7 +395,6 @@ public class DubG extends Canvas implements Runnable {
           }
           g.drawString("PLAY",40,175);
         } else {
-          //host font
           if (hostHover) {
             g.setColor(BLACK);
           } else {
@@ -537,7 +402,6 @@ public class DubG extends Canvas implements Runnable {
           }
           g.drawString("HOST",40,175);
           
-          //player font
           if (playerHover) {
             g.setColor(BLACK);
           } else {
@@ -546,7 +410,6 @@ public class DubG extends Canvas implements Runnable {
           g.drawString("PLAYER",170,175);
         }
         
-        //controls font
         if (controlHover) {
           g.setColor(BLACK);
         } else {
@@ -554,7 +417,6 @@ public class DubG extends Canvas implements Runnable {
         }
         g.drawString("CONTROLS",40,225);
         
-        //quit font
         if (quitHover) {
           g.setColor(BLACK);
         } else {
@@ -562,7 +424,6 @@ public class DubG extends Canvas implements Runnable {
         }
         g.drawString("QUIT",40,275);
       } else {
-        //displaying the controls screen with left and right arrows
         g.drawImage(controls[controlPic-1],0,0,480,329,this);
         if (leftHover) {
           g.drawImage(leftArrowWhite,20,0,80,60,this);
@@ -578,16 +439,9 @@ public class DubG extends Canvas implements Runnable {
       }
     }
     
-    /**
-     * This method gets the updated position of the mouse in the main menu screen.
-     * @param e the event of the mouse
-     */
-    
     public void mouseMoved(MouseEvent e) {
-      //x and y coordinates of the mouse
       int x = e.getX(), y = e.getY();
       if (inMenu) {
-        //displaying the different buttons if mouse is hovered over or not
         if (x >= 31 && x <= 279 && y >= 153 && y <= 187 && !playClick) {
           playHover = true;
         } else if (x >= 31 && x <= 279 && y >= 203 && y <= 238) {
@@ -616,17 +470,14 @@ public class DubG extends Canvas implements Runnable {
         }
       }
     }
-  
-    /**
-     * This method checks to see if the user has clicked using the mouse.
-     * @param e the event of the mouse
-     */
     
+    public void mouseDragged(MouseEvent e) {
+    
+    }
+  
     public void mousePressed(MouseEvent e) {
-      //x and y coordinates of the mouse
       int x = e.getX(), y = e.getY();
       if (inMenu) {
-        //moving to the different commands if the buttons are clicked or not
         if (x >= 31 && x <= 279 && y >= 153 && y <= 187 && !playClick) {
           playClick = true;
         } else if (x >= 31 && x <= 279 && y >= 203 && y <= 238) {
@@ -658,10 +509,6 @@ public class DubG extends Canvas implements Runnable {
       }
     }
     
-    public void mouseDragged(MouseEvent e) {
-    
-    }
-    
     public void mouseReleased(MouseEvent e) {
       
     }
@@ -679,13 +526,9 @@ public class DubG extends Canvas implements Runnable {
     }
   }
   
-  /**
-   * This main method that starts running the main menu screen before the actual game is run
-   */
-  
   public static void main(String[] args) throws Exception {
-    //playing the background music
     sound("IntroMusic.wav");
     displayMenu();
+    //new DubG().start();
   }
 }
